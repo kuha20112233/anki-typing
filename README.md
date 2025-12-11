@@ -1,393 +1,197 @@
-# 🎯 TOEIC Typing Memorizer
+# ⌨️ TOEIC Typing Memorizer
 
-TOEIC 頻出単語を「**Anki（分散学習）**」と「**タイピング（運動記憶）**」を組み合わせて効率的に暗記する Web アプリケーション。
+タイピングで TOEIC 単語を効率的に暗記する Web アプリケーションです。
 
-「**e-typing**」のようなテンポの良い入力体験と、「**Anki**」の復習アルゴリズムを融合。
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![React](https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
 
-![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat-square&logo=typescript&logoColor=white)
-![React](https://img.shields.io/badge/React-20232A?style=flat-square&logo=react&logoColor=61DAFB)
-![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=flat-square&logo=postgresql&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
+## ✨ 機能
 
----
+### 🎮 3 つの学習モード
 
-## 📸 デモ
+| モード       | 説明                              |
+| ------------ | --------------------------------- |
+| **English**  | 日本語を見て英単語をタイピング    |
+| **Japanese** | 英単語を見てローマ字で日本語入力  |
+| **Double**   | English → Japanese の順で両方入力 |
 
-> ※ スクリーンショットを追加予定
+### 📝 主な特徴
 
----
-
-## 🏗️ システムアーキテクチャ
-
-```mermaid
-graph TB
-    subgraph Client["🖥️ Client (Browser)"]
-        UI[React App<br/>TypeScript + Tailwind CSS]
-    end
-
-    subgraph Docker["🐳 Docker Compose"]
-        subgraph Frontend["Frontend Container"]
-            VITE[Vite Dev Server<br/>:5173]
-        end
-
-        subgraph Backend["Backend Container"]
-            API[FastAPI<br/>:8000]
-            ORM[SQLAlchemy ORM]
-        end
-
-        subgraph Database["Database Container"]
-            DB[(PostgreSQL 15<br/>:5432)]
-        end
-    end
-
-    UI -->|HTTP Request| VITE
-    VITE -->|API Call| API
-    API --> ORM
-    ORM -->|SQL| DB
-```
-
----
-
-## 🔄 画面遷移フロー
-
-```mermaid
-flowchart LR
-    subgraph Dashboard["📊 Dashboard"]
-        STATS[統計表示]
-        UPLOAD[CSVアップロード]
-        MODE[モード選択]
-        SETTINGS[設定]
-    end
-
-    subgraph Game["🎮 Game Screen"]
-        TYPING[タイピング入力]
-        PROGRESS[進捗表示]
-        GUIDE[ガイド表示ON/OFF]
-    end
-
-    subgraph Result["🏆 Result Screen"]
-        SCORE[スコア表示]
-        ACCURACY[正解率]
-        TIME[所要時間]
-    end
-
-    Dashboard -->|モード選択| Game
-    Game -->|全問完了| Result
-    Result -->|リトライ| Game
-    Result -->|トップへ| Dashboard
-    Game -->|やめる| Dashboard
-```
-
----
-
-## 🎮 ゲームモード詳細
-
-```mermaid
-flowchart TD
-    subgraph English["🇬🇧 English Mode"]
-        E1[日本語を表示] --> E2[英単語を入力]
-        E2 --> E3["例: 構造 → structure"]
-    end
-
-    subgraph Japanese["🇯🇵 Japanese Mode"]
-        J1[英単語を表示] --> J2[ローマ字を入力]
-        J2 --> J3["例: structure → kouzou"]
-    end
-
-    subgraph Double["🔄 Double Mode"]
-        D1[Step 1: 日本語表示] --> D2[英単語を入力]
-        D2 --> D3[Step 2: 英単語表示]
-        D3 --> D4[ローマ字を入力]
-    end
-```
-
----
-
-## 🗄️ データベース設計
-
-```mermaid
-erDiagram
-    WORDS {
-        int id PK "一意のID"
-        string english "英単語"
-        string japanese_view "表示用日本語"
-        string japanese_romaji "ローマ字"
-        string status "学習状態"
-        datetime next_review_at "次回復習日時"
-        int interval "復習間隔（日）"
-        int mistake_count "ミス回数"
-        datetime created_at "作成日時"
-    }
-```
-
-### 学習ステータス
-
-| Status     | 説明         |
-| ---------- | ------------ |
-| `new`      | 未学習       |
-| `learning` | 学習中       |
-| `review`   | 復習待ち     |
-| `mastered` | マスター済み |
-
----
-
-## ⚡ タイピングエンジン仕様
-
-```mermaid
-sequenceDiagram
-    participant User as ユーザー
-    participant Engine as タイピングエンジン
-    participant UI as 画面
-
-    User->>Engine: キー入力
-    Engine->>Engine: 期待文字と比較
-
-    alt 正解
-        Engine->>UI: 文字を青色で表示
-        Engine->>Engine: currentIndex++
-        alt 最後の文字
-            Engine->>UI: Auto Next（次の単語へ）
-        end
-    else 不正解
-        Engine->>UI: 画面を赤くフラッシュ
-        Engine->>Engine: エラーフラグON
-        Note over Engine: 入力は受け付けない
-    end
-```
-
-### 特徴
-
-- **Character-by-Character 判定**: 1 文字ずつリアルタイム判定
-- **Auto Next**: 最後の文字入力で自動的に次へ（Enter キー不要）
-- **エラー時**: 不正解文字は入力されず、画面が一瞬赤くなる
-
----
-
-## 📡 API エンドポイント
-
-```mermaid
-graph LR
-    subgraph Study["📚 学習API"]
-        GET_SESSION["GET /study/session"]
-        POST_RESULT["POST /study/result"]
-    end
-
-    subgraph Words["📝 単語API"]
-        POST_UPLOAD["POST /words/upload"]
-        GET_WORDS["GET /words/"]
-    end
-
-    subgraph Stats["📊 統計API"]
-        GET_STATS["GET /stats"]
-    end
-```
-
-| Method | Endpoint         | 説明                       |
-| ------ | ---------------- | -------------------------- |
-| `GET`  | `/study/session` | 学習セッション用の単語取得 |
-| `POST` | `/study/result`  | 学習結果の送信             |
-| `POST` | `/words/upload`  | CSV アップロード           |
-| `GET`  | `/words/`        | 全単語取得                 |
-| `GET`  | `/stats`         | 統計情報取得               |
-
----
-
-## 🔁 Anki アルゴリズム（簡易版）
-
-```mermaid
-flowchart TD
-    START[回答] --> CHECK{正解?}
-
-    CHECK -->|Yes| CORRECT[interval = interval × 2 + 1]
-    CORRECT --> UPDATE_CORRECT[next_review_at = NOW + interval日]
-    UPDATE_CORRECT --> STATUS_CHECK{interval >= 21?}
-    STATUS_CHECK -->|Yes| MASTERED[status = mastered]
-    STATUS_CHECK -->|No| LEARNING[status = learning/review]
-
-    CHECK -->|No| WRONG[interval = 1]
-    WRONG --> UPDATE_WRONG[next_review_at = NOW + 10分]
-    UPDATE_WRONG --> MISTAKE[mistake_count++]
-    MISTAKE --> LEARNING2[status = learning]
-```
-
----
+- **Auto-Next**: 最後の文字を入力すると自動で次の問題へ（Enter 不要）
+- **ローマ字揺れ対応**: `shi/si`, `chi/ti`, `tsu/tu`, `fu/hu`, `ji/zi`, `nn/n` など複数の入力方式に対応
+- **ガイド表示**: 入力中にローマ字ガイドを表示（ON/OFF 切替可能）
+- **タイピング音**: 正解/不正解/単語完了時にサウンドフィードバック
+- **学習進捗管理**: Anki ライクなスペースドリピティションアルゴリズム
+- **CSV インポート**: 単語リストを CSV で一括登録
 
 ## 🚀 クイックスタート
 
-### 必要要件
+### 必要なもの
 
-- Docker
-- Docker Compose
+- Docker & Docker Compose
 
 ### 起動方法
 
 ```bash
 # リポジトリをクローン
-git clone https://github.com/yourusername/anki-typing.git
+git clone <repository-url>
 cd anki-typing
 
 # Docker Composeで起動
-docker compose up --build
+docker compose up -d
 
-# バックグラウンドで起動する場合
-docker compose up -d --build
+# ブラウザでアクセス
+open http://localhost:5173
 ```
 
-### アクセス URL
+### 停止方法
 
-| サービス              | URL                        |
-| --------------------- | -------------------------- |
-| フロントエンド        | http://localhost:5173      |
-| バックエンド API Docs | http://localhost:8000/docs |
+```bash
+docker compose down
 
----
-
-## 📝 使い方
-
-1. ブラウザで http://localhost:5173 を開く
-2. CSV ファイルをアップロード（`sample_words.csv` を使用可能）
-3. ⚙️ 設定でガイド表示の ON/OFF を選択
-4. ゲームモードを選択して開始
-5. **IME は OFF にして直接入力モードでプレイ**
-
----
-
-## 📁 CSV フォーマット
-
-```csv
-english,japanese_view,japanese_romaji
-structure,構造,kouzou
-schedule,予定,yotei
-implement,実装する,jissousuru
+# データも削除する場合
+docker compose down -v
 ```
 
-| カラム            | 説明               |
-| ----------------- | ------------------ |
-| `english`         | 英単語             |
-| `japanese_view`   | 表示用日本語       |
-| `japanese_romaji` | ローマ字入力判定用 |
+## 📊 アーキテクチャ
 
----
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Docker Compose                        │
+├───────────────┬───────────────┬─────────────────────────┤
+│   Frontend    │    Backend    │        Database         │
+│   (React)     │   (FastAPI)   │      (PostgreSQL)       │
+│   :5173       │    :8000      │         :5432           │
+└───────────────┴───────────────┴─────────────────────────┘
+```
 
-## 📂 ディレクトリ構成
+## 📁 プロジェクト構造
 
 ```
 anki-typing/
-├── 📄 docker-compose.yml     # Docker Compose設定
-├── 📄 .gitignore
-├── 📄 README.md
-├── 📄 sample_words.csv       # サンプル単語データ
-│
-├── 📁 backend/               # FastAPI バックエンド
+├── docker-compose.yml
+├── sample_words.csv          # サンプル単語データ（50語）
+├── frontend/
 │   ├── Dockerfile
-│   ├── requirements.txt
-│   ├── main.py              # エントリーポイント
-│   ├── database.py          # DB接続設定
-│   ├── models.py            # SQLAlchemyモデル
-│   ├── schemas.py           # Pydanticスキーマ
-│   ├── crud.py              # DB操作
-│   └── routers/
-│       ├── study.py         # 学習API
-│       ├── words.py         # 単語API
-│       └── stats.py         # 統計API
-│
-└── 📁 frontend/              # React フロントエンド
+│   ├── package.json
+│   └── src/
+│       ├── components/       # UIコンポーネント
+│       │   ├── CSVUploader.tsx
+│       │   ├── GameHeader.tsx
+│       │   ├── ModeSelect.tsx
+│       │   ├── StatsCard.tsx
+│       │   └── TypingDisplay.tsx
+│       ├── pages/            # ページコンポーネント
+│       │   ├── Dashboard.tsx
+│       │   ├── Game.tsx
+│       │   └── Result.tsx
+│       ├── hooks/            # カスタムフック
+│       │   ├── useApi.ts
+│       │   ├── useSound.ts
+│       │   └── useTypingEngine.ts
+│       ├── utils/
+│       │   └── romajiUtils.ts  # ローマ字揺れ対応
+│       └── types/
+│           └── index.ts
+└── backend/
     ├── Dockerfile
-    ├── package.json
-    ├── vite.config.ts
-    ├── tailwind.config.js
-    ├── tsconfig.json
-    └── src/
-        ├── main.tsx
-        ├── App.tsx
-        ├── index.css
-        ├── types/           # TypeScript型定義
-        │   └── index.ts
-        ├── hooks/           # カスタムフック
-        │   ├── useTypingEngine.ts  # タイピングエンジン
-        │   ├── useApi.ts
-        │   └── index.ts
-        ├── components/      # UIコンポーネント
-        │   ├── TypingDisplay.tsx
-        │   ├── StatsCard.tsx
-        │   ├── CSVUploader.tsx
-        │   ├── ModeSelect.tsx
-        │   ├── GameHeader.tsx
-        │   └── index.ts
-        └── pages/           # ページコンポーネント
-            ├── Dashboard.tsx
-            ├── Game.tsx
-            ├── Result.tsx
-            └── index.ts
+    ├── requirements.txt
+    ├── main.py              # FastAPIエントリーポイント
+    ├── database.py          # DB接続設定
+    ├── models.py            # SQLAlchemyモデル
+    ├── schemas.py           # Pydanticスキーマ
+    ├── crud.py              # CRUD操作
+    └── routers/
+        ├── words.py         # 単語API
+        └── study.py         # 学習セッションAPI
 ```
 
----
+## 📥 CSV フォーマット
 
-## 🛠️ 技術スタック
+単語を登録する CSV ファイルは以下の形式で作成してください：
 
-### Frontend
+```csv
+english,japanese_view,japanese_romaji
+accommodate,収容する,shuuyousuru
+acknowledge,認める,mitomeru
+```
 
-- **React 18** - UI ライブラリ
-- **TypeScript** - 型安全な開発
-- **Vite** - 高速ビルドツール
-- **Tailwind CSS** - ユーティリティファースト CSS
-- **React Router** - ルーティング
+| カラム            | 説明                 |
+| ----------------- | -------------------- |
+| `english`         | 英単語               |
+| `japanese_view`   | 日本語（表示用）     |
+| `japanese_romaji` | 日本語のローマ字表記 |
 
-### Backend
+サンプルファイル: [sample_words.csv](./sample_words.csv)
 
-- **Python 3.11** - プログラミング言語
-- **FastAPI** - 高速 API フレームワーク
-- **SQLAlchemy** - ORM
-- **Pydantic** - データバリデーション
+## 🔌 API エンドポイント
 
-### Infrastructure
+### 単語管理
 
-- **PostgreSQL 15** - データベース
-- **Docker Compose** - コンテナオーケストレーション
+| Method | Endpoint        | 説明                 |
+| ------ | --------------- | -------------------- |
+| GET    | `/words`        | 全単語取得           |
+| POST   | `/words/upload` | CSV 一括アップロード |
+| GET    | `/words/stats`  | 学習統計取得         |
 
----
+### 学習セッション
 
-## 🔧 開発
+| Method | Endpoint         | 説明                    |
+| ------ | ---------------- | ----------------------- |
+| GET    | `/study/session` | 学習用単語取得（10 語） |
+| POST   | `/study/result`  | 学習結果送信            |
 
-### ローカル開発（Docker 外）
+## 🛠️ 開発
+
+### ローカル開発（ホットリロード対応）
 
 ```bash
-# バックエンド
-cd backend
-pip install -r requirements.txt
-uvicorn main:app --reload
+# Dockerコンテナ起動（開発モード）
+docker compose up
 
-# フロントエンド
-cd frontend
-npm install
-npm run dev
+# フロントエンドログ確認
+docker compose logs -f frontend
+
+# バックエンドログ確認
+docker compose logs -f backend
+
+# DBに接続
+docker compose exec db psql -U postgres -d anki_typing
 ```
 
-### コンテナ操作
+### 技術スタック
 
-```bash
-# 起動
-docker compose up -d
+**Frontend:**
 
-# 停止
-docker compose down
+- React 18 + TypeScript
+- Vite（ビルドツール）
+- Tailwind CSS（スタイリング）
+- React Router v6（ルーティング）
+- Web Audio API（サウンド）
 
-# ログ確認
-docker compose logs -f
+**Backend:**
 
-# 再ビルド
-docker compose up -d --build
-```
+- Python 3.11
+- FastAPI
+- SQLAlchemy
+- PostgreSQL 15
 
----
+## 📝 使い方
+
+1. **単語を登録**: ダッシュボードで CSV ファイルをアップロード
+2. **モードを選択**: English / Japanese / Double から選択
+3. **タイピング開始**: 10 問のタイピングセッションが開始
+4. **結果確認**: 正解率と所要時間を確認
+5. **繰り返し学習**: 間違えた単語は優先的に出題されます
+
+## ⚠️ 既知の問題
+
+- 学習進捗の更新がダッシュボードに反映されない
+- 問題が English と Japanese では 5 問、Double モードでは 10 問しか出ない
 
 ## 📄 ライセンス
 
 MIT License
-
----
-
-## 🤝 コントリビューション
-
-プルリクエスト歓迎です！
