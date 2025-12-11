@@ -17,6 +17,7 @@ export const Game: React.FC = () => {
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [results, setResults] = useState<StudyResultItem[]>([]);
+  const [gameComplete, setGameComplete] = useState(false);
   const [doubleStep, setDoubleStep] = useState<"english" | "japanese">(
     "english"
   );
@@ -113,6 +114,9 @@ export const Game: React.FC = () => {
 
         // 結果をセッションストレージに保存して結果画面へ
         sessionStorage.setItem("gameResult", JSON.stringify(gameResult));
+
+        // 完了フラグを立ててすぐに遷移
+        setGameComplete(true);
         navigate("/result");
       }
     },
@@ -161,12 +165,14 @@ export const Game: React.FC = () => {
   // キーボードイベントのリスナー
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
+      // ゲーム完了時はキー入力を無視
+      if (gameComplete) return;
       handleKeyDown(e);
     };
 
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [handleKeyDown]);
+  }, [handleKeyDown, gameComplete]);
 
   // やめるボタン
   const handleQuit = () => {
@@ -181,6 +187,35 @@ export const Game: React.FC = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent mx-auto mb-4" />
           <p className="text-gray-600">単語を読み込み中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ゲーム完了時の表示（遷移中）
+  if (gameComplete) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4">🎉</div>
+          <p className="text-xl text-gray-700">全問完了！結果画面へ移動中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 単語がない場合のガード
+  if (words.length === 0 || !currentWord) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-xl text-gray-700">単語がありません</p>
+          <button
+            onClick={() => navigate("/")}
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+          >
+            ダッシュボードに戻る
+          </button>
         </div>
       </div>
     );

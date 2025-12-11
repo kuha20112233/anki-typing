@@ -34,6 +34,9 @@ export function useTypingEngine({
 
   // targetStringが変わったらリセット
   useEffect(() => {
+    // 空文字列の場合は何もしない（初期化待ち）
+    if (!targetString) return;
+
     setState({
       currentIndex: 0,
       targetString: targetString,
@@ -67,10 +70,20 @@ export function useTypingEngine({
         return;
       }
 
+      // 空文字列の場合は何もしない
+      if (!targetString) {
+        return;
+      }
+
       e.preventDefault();
 
       setState((prev) => {
         if (prev.isComplete) {
+          return prev;
+        }
+
+        // 空文字列チェック
+        if (!prev.targetString) {
           return prev;
         }
 
@@ -116,7 +129,7 @@ export function useTypingEngine({
         setState((prev) => ({ ...prev, hasError: false }));
       }, 200);
     },
-    [onComplete]
+    [onComplete, targetString]
   );
 
   return {
