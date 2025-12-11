@@ -4,6 +4,8 @@ import { TypingState } from "../types";
 interface UseTypingEngineProps {
   targetString: string;
   onComplete: (hasError: boolean) => void;
+  onCorrectKey?: () => void;
+  onErrorKey?: () => void;
 }
 
 interface UseTypingEngineReturn {
@@ -21,6 +23,8 @@ interface UseTypingEngineReturn {
 export function useTypingEngine({
   targetString,
   onComplete,
+  onCorrectKey,
+  onErrorKey,
 }: UseTypingEngineProps): UseTypingEngineReturn {
   const [state, setState] = useState<TypingState>({
     currentIndex: 0,
@@ -95,6 +99,9 @@ export function useTypingEngine({
           inputChar.toLowerCase() === expectedChar.toLowerCase();
 
         if (isCorrect) {
+          // 正解音を鳴らす
+          onCorrectKey?.();
+
           const newTypedString = prev.typedString + inputChar;
           const newIndex = prev.currentIndex + 1;
           const isComplete = newIndex === prev.targetString.length;
@@ -115,6 +122,9 @@ export function useTypingEngine({
             hasError: false,
           };
         } else {
+          // 不正解音を鳴らす
+          onErrorKey?.();
+
           // 不正解: エラーフラグを立てる（入力は受け付けない）
           hasErrorOccurred.current = true;
           return {
@@ -129,7 +139,7 @@ export function useTypingEngine({
         setState((prev) => ({ ...prev, hasError: false }));
       }, 200);
     },
-    [onComplete, targetString]
+    [onComplete, onCorrectKey, onErrorKey, targetString]
   );
 
   return {

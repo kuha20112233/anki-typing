@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { GameHeader, TypingDisplay } from "../components";
-import { useTypingEngine, getStudySession } from "../hooks";
+import { useTypingEngine, useSound, getStudySession } from "../hooks";
 import { Word, GameMode, StudyResultItem, GameResult } from "../types";
 
 /**
@@ -12,6 +12,7 @@ import { Word, GameMode, StudyResultItem, GameResult } from "../types";
 export const Game: React.FC = () => {
   const { mode } = useParams<{ mode: GameMode }>();
   const navigate = useNavigate();
+  const { playTypeSound, playErrorSound, playWordCompleteSound } = useSound();
 
   const [words, setWords] = useState<Word[]>([]);
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
@@ -90,6 +91,8 @@ export const Game: React.FC = () => {
 
       // 次の単語へ、または結果画面へ
       if (currentWordIndex < words.length - 1) {
+        // 単語完了音を鳴らす
+        playWordCompleteSound();
         setCurrentWordIndex((prev) => prev + 1);
         wordStartTimeRef.current = Date.now();
       } else {
@@ -116,6 +119,7 @@ export const Game: React.FC = () => {
         sessionStorage.setItem("gameResult", JSON.stringify(gameResult));
 
         // 完了フラグを立ててすぐに遷移
+        playWordCompleteSound();
         setGameComplete(true);
         navigate("/result");
       }
@@ -128,6 +132,7 @@ export const Game: React.FC = () => {
       words.length,
       results,
       navigate,
+      playWordCompleteSound,
     ]
   );
 
@@ -135,6 +140,8 @@ export const Game: React.FC = () => {
   const { state, handleKeyDown } = useTypingEngine({
     targetString: target,
     onComplete: handleWordComplete,
+    onCorrectKey: playTypeSound,
+    onErrorKey: playErrorSound,
   });
 
   // 単語の取得
