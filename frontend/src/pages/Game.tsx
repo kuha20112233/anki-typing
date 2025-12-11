@@ -32,7 +32,11 @@ export const Game: React.FC = () => {
   const currentWord = words[currentWordIndex];
 
   // モードに応じた問題文と入力対象を決定
-  const getQuestionAndTarget = useCallback(() => {
+  const getQuestionAndTarget = useCallback((): {
+    question: string;
+    target: string;
+    japaneseHint?: string;
+  } => {
     if (!currentWord) return { question: "", target: "" };
 
     if (mode === "english") {
@@ -44,6 +48,7 @@ export const Game: React.FC = () => {
       return {
         question: currentWord.english,
         target: currentWord.japanese_romaji,
+        japaneseHint: currentWord.japanese_view, // 日本語ヒントを追加
       };
     } else if (mode === "double") {
       if (doubleStep === "english") {
@@ -55,6 +60,7 @@ export const Game: React.FC = () => {
         return {
           question: currentWord.english,
           target: currentWord.japanese_romaji,
+          japaneseHint: currentWord.japanese_view, // 日本語ヒントを追加
         };
       }
     }
@@ -62,7 +68,7 @@ export const Game: React.FC = () => {
     return { question: "", target: "" };
   }, [currentWord, mode, doubleStep]);
 
-  const { question, target } = getQuestionAndTarget();
+  const { question, target, japaneseHint } = getQuestionAndTarget();
 
   // 単語完了時のコールバック
   const handleWordComplete = useCallback(
@@ -287,6 +293,7 @@ export const Game: React.FC = () => {
             currentIndex={state.currentIndex}
             hasError={state.hasError}
             showGuide={showGuide}
+            japaneseHint={japaneseHint}
           />
 
           {/* IME警告 */}

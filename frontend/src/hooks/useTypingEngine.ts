@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { TypingState } from "../types";
+import { isNextCharValid, isInputComplete } from "../utils/romajiUtils";
 
 interface UseTypingEngineProps {
   targetString: string;
@@ -16,7 +17,7 @@ interface UseTypingEngineReturn {
 
 /**
  * タイピングエンジンカスタムフック
- * - 1文字ずつ判定
+ * - 1文字ずつ判定（ローマ字の揺れ対応）
  * - 不正解時は入力を受け付けない（画面を一瞬赤くする）
  * - 最後の文字を入力したらAuto Next（Enter不要）
  */
@@ -91,20 +92,22 @@ export function useTypingEngine({
           return prev;
         }
 
-        const expectedChar = prev.targetString[prev.currentIndex];
         const inputChar = e.key;
+        const newTypedString = prev.typedString + inputChar;
 
-        // 大文字小文字を区別しない比較（英語モード用）
-        const isCorrect =
-          inputChar.toLowerCase() === expectedChar.toLowerCase();
+        // ローマ字の揺れを考慮した判定
+        const isCorrect = isNextCharValid(
+          prev.typedString,
+          inputChar,
+          prev.targetString
+        );
 
         if (isCorrect) {
           // 正解音を鳴らす
           onCorrectKey?.();
 
-          const newTypedString = prev.typedString + inputChar;
-          const newIndex = prev.currentIndex + 1;
-          const isComplete = newIndex === prev.targetString.length;
+          // 完了判定（揺れを考慮）
+          const isComplete = isInputComplete(newTypedString, prev.targetString);
 
           // 完了時はAuto Next（コールバック実行）
           if (isComplete) {
@@ -116,7 +119,7 @@ export function useTypingEngine({
 
           return {
             ...prev,
-            currentIndex: newIndex,
+            currentIndex: newTypedString.length,
             typedString: newTypedString,
             isComplete,
             hasError: false,

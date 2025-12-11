@@ -1,9 +1,10 @@
 import React from "react";
+import { getRemainingGuide } from "../utils/romajiUtils";
 
 interface TypingDisplayProps {
   /** 問題文（表示用） */
   questionText: string;
-  /** 入力対象の文字列 */
+  /** 入力対象の文字列（ローマ字） */
   targetString: string;
   /** 入力済み文字列 */
   typedString: string;
@@ -11,13 +12,16 @@ interface TypingDisplayProps {
   currentIndex: number;
   /** エラー状態 */
   hasError: boolean;
-  /** ガイドを表示するか（日本語モード用） */
+  /** ガイドを表示するか */
   showGuide?: boolean;
+  /** 日本語表示（ひらがな/カタカナ）- ガイド用 */
+  japaneseHint?: string;
 }
 
 /**
  * タイピング表示コンポーネント
  * - 問題文を大きく表示
+ * - 日本語ヒント（ひらがな）を表示
  * - 入力ガイド（薄い文字）と入力済み（濃い文字）を表示
  * - エラー時は背景を赤くフラッシュ
  */
@@ -25,10 +29,13 @@ export const TypingDisplay: React.FC<TypingDisplayProps> = ({
   questionText,
   targetString,
   typedString,
-  currentIndex,
   hasError,
   showGuide = true,
+  japaneseHint,
 }) => {
+  // 残りの文字を計算（揺れ対応）
+  const remainingChars = getRemainingGuide(typedString, targetString);
+
   return (
     <div
       className={`
@@ -43,6 +50,13 @@ export const TypingDisplay: React.FC<TypingDisplayProps> = ({
         <h2 className="text-4xl font-bold text-gray-800">{questionText}</h2>
       </div>
 
+      {/* 日本語ヒント（ローマ字入力時） */}
+      {showGuide && japaneseHint && (
+        <div className="text-center mb-4">
+          <p className="text-2xl text-gray-600">{japaneseHint}</p>
+        </div>
+      )}
+
       {/* 入力エリア */}
       <div className="text-center">
         <p className="text-sm text-gray-500 mb-2">入力</p>
@@ -54,11 +68,7 @@ export const TypingDisplay: React.FC<TypingDisplayProps> = ({
           <span className="animate-pulse text-blue-400">|</span>
 
           {/* 残りの文字（ガイド表示時は薄いグレー） */}
-          {showGuide && (
-            <span className="text-gray-300">
-              {targetString.slice(currentIndex)}
-            </span>
-          )}
+          {showGuide && <span className="text-gray-300">{remainingChars}</span>}
         </div>
       </div>
 
@@ -68,12 +78,18 @@ export const TypingDisplay: React.FC<TypingDisplayProps> = ({
           <div
             className="h-full bg-blue-500 transition-all duration-150 ease-out"
             style={{
-              width: `${(currentIndex / targetString.length) * 100}%`,
+              width: `${
+                targetString.length > 0
+                  ? (typedString.length /
+                      (typedString.length + remainingChars.length)) *
+                    100
+                  : 0
+              }%`,
             }}
           />
         </div>
         <p className="text-center text-sm text-gray-500 mt-2">
-          {currentIndex} / {targetString.length}
+          {typedString.length} / {typedString.length + remainingChars.length}
         </p>
       </div>
     </div>

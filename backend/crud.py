@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 import models
 import schemas
 
@@ -11,18 +11,22 @@ def get_words_for_study(
 ) -> List[models.Word]:
     """
     学習セッション用の単語を取得
-    - next_review_at <= NOW() または status == 'new' の単語を優先
+    - 優先順位:
+      1. status == 'new' の単語
+      2. next_review_at <= NOW() の単語（復習期限が来たもの）
+      3. 上記で足りない場合は、他の単語からランダムに補充
     """
     now = datetime.utcnow()
+    words = []
 
-    # 学習対象の単語を取得
-    query = (
+    # 1. 復習が必要な単語を取得（new, または復習期限が来たもの）
+    priority_words = (
         db.query(models.Word)
         .filter(
             or_(
+                models.Word.status == "new",
                 models.Word.next_review_at <= now,
                 models.Word.next_review_at.is_(None),
-                models.Word.status == "new",
             )
         )
         .order_by(
@@ -31,9 +35,25 @@ def get_words_for_study(
             models.Word.next_review_at.asc(),
         )
         .limit(limit)
+        .all()
     )
+    words.extend(priority_words)
 
-    return query.all()
+    # 2. 足りない場合は、既に取得した単語以外からランダムに補充
+    if len(words) < limit:
+        existing_ids = [w.id for w in words]
+        remaining = limit - len(words)
+
+        additional_words = (
+            db.query(models.Word)
+            .filter(~models.Word.id.in_(existing_ids) if existing_ids else True)
+            .order_by(func.random())
+            .limit(remaining)
+            .all()
+        )
+        words.extend(additional_words)
+
+    return words
 
 
 def update_word_progress(
@@ -44,9 +64,13 @@ def update_word_progress(
     """
     word = db.query(models.Word).filter(models.Word.id == word_id).first()
     if not word:
+        print(f"[update_word_progress] Word not found: {word_id}")
         return None
 
     now = datetime.utcnow()
+    print(
+        f"[update_word_progress] Updating word {word_id}: is_correct={is_correct}, current_interval={word.interval}"
+    )
 
     if is_correct:
         # 正解: intervalを増加
@@ -61,12 +85,20 @@ def update_word_progress(
             word.status = "review"
         else:
             word.status = "learning"
+
+        print(
+            f"[update_word_progress] Correct! new_interval={new_interval}, status={word.status}"
+        )
     else:
         # 不正解: intervalをリセット
         word.interval = 1
         word.next_review_at = now + timedelta(minutes=10)  # 10分後に再出題
         word.status = "learning"
         word.mistake_count += 1
+
+        print(
+            f"[update_word_progress] Incorrect! reset interval, mistake_count={word.mistake_count}"
+        )
 
     db.commit()
     db.refresh(word)
