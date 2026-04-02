@@ -190,7 +190,7 @@ docker compose exec db psql -U postgres -d anki_typing
 ## ⚠️ 既知の問題
 
 - 学習進捗の更新がダッシュボードに反映されない
-- 問題が English と Japanese では 5 問、Double モードでは 10 問しか出ない
+- 問題が English と Japanese では 5 問、Double モードでは 10 問しか出ない(問題数は，開始前に指定できるようにしたい)
 
 ## 📄 ライセンス
 
