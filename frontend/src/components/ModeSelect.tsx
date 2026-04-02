@@ -60,7 +60,7 @@ export const ModeSelect: React.FC<ModeSelectProps> = ({
           <input
             type="range"
             min="1"
-            max="50"
+            max="100"
             value={questionCount}
             onChange={(e) => setQuestionCount(Number(e.target.value))}
             disabled={disabled}
@@ -70,11 +70,11 @@ export const ModeSelect: React.FC<ModeSelectProps> = ({
             <input
               type="number"
               min="1"
-              max="50"
+              max="100"
               value={questionCount}
               onChange={(e) => {
                 const val = Number(e.target.value);
-                if (val >= 1 && val <= 50) {
+                if (val >= 1 && val <= 100) {
                   setQuestionCount(val);
                 }
               }}
@@ -85,7 +85,7 @@ export const ModeSelect: React.FC<ModeSelectProps> = ({
           </div>
         </div>
         <p className="text-xs text-gray-500 mt-2">
-          💡 1～50問の範囲で設定できます
+          💡 1～100問の範囲で設定できます
         </p>
       </div>
 

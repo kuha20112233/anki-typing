@@ -47,9 +47,12 @@ export async function getStudySession(
 /**
  * 学習結果を送信
  */
-export async function submitStudyResult(
-  results: StudyResultItem[]
-): Promise<{ message: string; updated_count: number }> {
+export async function submitStudyResult(results: StudyResultItem[]): Promise<{
+  message: string;
+  updated_count: number;
+  total_received: number;
+  missing_word_ids: number[];
+}> {
   return fetchApi("/study/result", {
     method: "POST",
     body: JSON.stringify({ results }),

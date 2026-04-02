@@ -15,7 +15,7 @@ export const Game: React.FC = () => {
   const [searchParams] = useSearchParams();
   const questionCount = Math.min(
     Math.max(Number(searchParams.get("questions")) || 10, 1),
-    50
+    100
   );
 
   useEffect(() => {
@@ -30,7 +30,6 @@ export const Game: React.FC = () => {
   const [words, setWords] = useState<Word[]>([]);
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [results, setResults] = useState<StudyResultItem[]>([]);
   const [gameComplete, setGameComplete] = useState(false);
   const [doubleStep, setDoubleStep] = useState<"english" | "japanese">(
     "english"
@@ -41,6 +40,8 @@ export const Game: React.FC = () => {
   });
   const startTimeRef = useRef<number>(Date.now());
   const wordStartTimeRef = useRef<number>(Date.now());
+  const resultsRef = useRef<StudyResultItem[]>([]);
+  const processedStepKeysRef = useRef<Set<string>>(new Set());
 
   const currentWord = words[currentWordIndex];
 
@@ -86,82 +87,93 @@ export const Game: React.FC = () => {
   // 単語完了時のコールバック
   const handleWordComplete = useCallback(
     (hasError: boolean) => {
-      // Doubleモードの場合
+      if (!currentWord) return;
+
+      const stepKey =
+        mode === "double"
+          ? `${currentWordIndex}:${doubleStep}`
+          : `${currentWordIndex}:single`;
+
+      // 同一問題・同一ステップの二重完了を防止
+      if (processedStepKeysRef.current.has(stepKey)) {
+        return;
+      }
+      processedStepKeysRef.current.add(stepKey);
+
+      // DoubleモードのStep1は記録せずStep2へ
+      if (mode === "double" && doubleStep === "english") {
+        setDoubleStep("japanese");
+        return;
+      }
+
+      const currentResult: StudyResultItem = {
+        word_id: currentWord.id,
+        is_correct: !hasError,
+      };
+      const nextResults = [...resultsRef.current, currentResult];
+      resultsRef.current = nextResults;
+
+      // DoubleモードStep2完了時は次単語を英語ステップから開始
       if (mode === "double") {
-        if (doubleStep === "english") {
-          // Step1完了 -> Step2へ
-          setDoubleStep("japanese");
-          return;
-        } else {
-          // Step2完了 -> 結果を記録して次の単語へ
-          setResults((prev) => [
-            ...prev,
-            { word_id: currentWord.id, is_correct: !hasError },
-          ]);
-          setDoubleStep("english");
-        }
-      } else {
-        // English/Japaneseモードの場合
-        setResults((prev) => [
-          ...prev,
-          { word_id: currentWord.id, is_correct: !hasError },
-        ]);
+        setDoubleStep("english");
       }
 
       // 次の単語へ、または結果画面へ
       if (currentWordIndex < words.length - 1) {
-        // 単語完了音を鳴らす
         playWordCompleteSound();
-        setCurrentWordIndex((prev) => prev + 1);
+        setCurrentWordIndex(currentWordIndex + 1);
         wordStartTimeRef.current = Date.now();
-      } else {
-        // 全問終了 -> 結果画面へ
-        const totalTime = Date.now() - startTimeRef.current;
-        const gameResult: GameResult = {
-          totalWords: words.length,
-          correctCount:
-            results.filter((r) => r.is_correct).length + (!hasError ? 1 : 0),
-          incorrectCount:
-            results.filter((r) => !r.is_correct).length + (hasError ? 1 : 0),
-          totalTime,
-          accuracy: 0,
-          results: [
-            ...results,
-            { word_id: currentWord.id, is_correct: !hasError },
-          ],
-        };
-        gameResult.accuracy = Math.round(
-          (gameResult.correctCount / gameResult.totalWords) * 100
-        );
-
-        // 結果をセッションストレージに保存して結果画面へ
-        sessionStorage.setItem("gameResult", JSON.stringify(gameResult));
-
-        // 完了フラグを立ててすぐに遷移
-        playWordCompleteSound();
-        setGameComplete(true);
-        navigate("/result");
+        return;
       }
+
+      // 全問終了 -> 結果画面へ
+      const totalTime = Date.now() - startTimeRef.current;
+      const correctCount = nextResults.filter((r) => r.is_correct).length;
+      const incorrectCount = nextResults.length - correctCount;
+      const totalWords = words.length;
+      const gameResult: GameResult = {
+        totalWords,
+        correctCount: Math.min(correctCount, totalWords),
+        incorrectCount: Math.min(incorrectCount, totalWords),
+        totalTime,
+        accuracy:
+          totalWords > 0
+            ? Math.round(
+                (Math.min(correctCount, totalWords) / totalWords) * 100
+              )
+            : 0,
+        results: nextResults,
+      };
+
+      sessionStorage.setItem("gameResult", JSON.stringify(gameResult));
+      playWordCompleteSound();
+      setGameComplete(true);
+      navigate("/result");
     },
     [
+      currentWord,
       mode,
       doubleStep,
-      currentWord,
       currentWordIndex,
       words.length,
-      results,
       navigate,
       playWordCompleteSound,
     ]
   );
 
   // タイピングエンジン
-  const { state, handleKeyDown } = useTypingEngine({
+  const { state, handleKeyDown, reset } = useTypingEngine({
     targetString: target,
     onComplete: handleWordComplete,
     onCorrectKey: playTypeSound,
     onErrorKey: playErrorSound,
   });
+
+  // 問題切り替え時は同じ文字列でも必ず入力状態をリセット
+  useEffect(() => {
+    if (!target) return;
+    reset(target);
+  }, [target, currentWordIndex, doubleStep, reset]);
 
   // 単語の取得
   useEffect(() => {
@@ -174,6 +186,11 @@ export const Game: React.FC = () => {
           return;
         }
         setWords(data);
+        resultsRef.current = [];
+        setCurrentWordIndex(0);
+        setDoubleStep("english");
+        setGameComplete(false);
+        processedStepKeysRef.current = new Set();
         startTimeRef.current = Date.now();
         wordStartTimeRef.current = Date.now();
       } catch (error) {

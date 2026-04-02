@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { submitStudyResult } from "../hooks/useApi";
 import { GameResult } from "../types";
@@ -14,6 +14,7 @@ export const Result: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const hasSubmittedRef = useRef(false);
 
   useEffect(() => {
     // セッションストレージから結果を取得
@@ -22,8 +23,11 @@ export const Result: React.FC = () => {
       const parsed = JSON.parse(storedResult) as GameResult;
       setResult(parsed);
 
-      // 結果をAPIに送信
-      submitResults(parsed.results);
+      // 結果をAPIに送信（StrictModeの二重実行対策）
+      if (!hasSubmittedRef.current) {
+        hasSubmittedRef.current = true;
+        submitResults(parsed.results);
+      }
     } else {
       // 結果がない場合はダッシュボードへ
       navigate("/");

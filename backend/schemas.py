@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class WordBase(BaseModel):
@@ -34,14 +34,23 @@ class WordSchema(WordBase):
 class StudyResultItem(BaseModel):
     """学習結果の単一アイテム"""
 
-    word_id: int
+    word_id: int = Field(..., ge=1)
     is_correct: bool
 
 
 class StudyResultRequest(BaseModel):
     """学習結果送信用スキーマ"""
 
-    results: List[StudyResultItem]
+    results: List[StudyResultItem] = Field(..., min_length=1, max_length=100)
+
+
+class StudyResultResponse(BaseModel):
+    """学習結果送信レスポンス"""
+
+    message: str
+    updated_count: int
+    total_received: int
+    missing_word_ids: List[int]
 
 
 class StatsResponse(BaseModel):

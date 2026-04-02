@@ -36,6 +36,7 @@ export function useTypingEngine({
   });
 
   const hasErrorOccurred = useRef(false);
+  const completionTriggered = useRef(false);
 
   // targetStringが変わったらリセット
   useEffect(() => {
@@ -50,6 +51,7 @@ export function useTypingEngine({
       hasError: false,
     });
     hasErrorOccurred.current = false;
+    completionTriggered.current = false;
   }, [targetString]);
 
   const reset = useCallback((newTarget: string) => {
@@ -61,6 +63,7 @@ export function useTypingEngine({
       hasError: false,
     });
     hasErrorOccurred.current = false;
+    completionTriggered.current = false;
   }, []);
 
   const handleKeyDown = useCallback(
@@ -110,7 +113,8 @@ export function useTypingEngine({
           const isComplete = isInputComplete(newTypedString, prev.targetString);
 
           // 完了時はAuto Next（コールバック実行）
-          if (isComplete) {
+          if (isComplete && !completionTriggered.current) {
+            completionTriggered.current = true;
             // 非同期でonCompleteを呼ぶ（state更新後に実行されるように）
             setTimeout(() => {
               onComplete(hasErrorOccurred.current);

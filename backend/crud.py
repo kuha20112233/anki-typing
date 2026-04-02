@@ -68,41 +68,53 @@ def get_words_for_study(
     return words
 
 
-def update_word_progress(
-    db: Session, word_id: int, is_correct: bool
-) -> Optional[models.Word]:
+def update_word_progress_batch(
+    db: Session, results: List[schemas.StudyResultItem]
+) -> tuple[int, List[int]]:
     """
-    単語の学習進捗を更新（簡易Ankiアルゴリズム）
+    学習進捗を一括更新
+    - 複数問題（複数単語）を1リクエストで安全に処理
+    - 存在しないword_idはスキップし、missing_idsに返す
+    Returns: (updated_count, missing_ids)
     """
-    word = db.query(models.Word).filter(models.Word.id == word_id).first()
-    if not word:
-        print(f"[update_word_progress] Word not found: {word_id}")
-        return None
+    word_ids = [item.word_id for item in results]
+    words = db.query(models.Word).filter(models.Word.id.in_(word_ids)).all()
+    word_map = {word.id: word for word in words}
 
+    updated_count = 0
+    missing_ids: List[int] = []
     now = datetime.utcnow()
 
-    if is_correct:
-        # 正解: intervalを増加
-        new_interval = word.interval * 2 + 1
-        word.interval = new_interval
-        word.next_review_at = now + timedelta(days=new_interval)
+    for item in results:
+        word = word_map.get(item.word_id)
+        if not word:
+            if item.word_id not in missing_ids:
+                missing_ids.append(item.word_id)
+            continue
 
-        # ステータス更新
-        if new_interval >= 21:
-            word.status = "mastered"
-        elif new_interval >= 7:
-            word.status = "review"
+        if item.is_correct:
+            # 正解: intervalを増加
+            new_interval = word.interval * 2 + 1
+            word.interval = new_interval
+            word.next_review_at = now + timedelta(days=new_interval)
+
+            # ステータス更新
+            if new_interval >= 21:
+                word.status = "mastered"
+            elif new_interval >= 7:
+                word.status = "review"
+            else:
+                word.status = "learning"
         else:
+            # 不正解: intervalをリセット
+            word.interval = 1
+            word.next_review_at = now + timedelta(minutes=10)
             word.status = "learning"
+            word.mistake_count += 1
 
-    else:
-        # 不正解: intervalをリセット
-        word.interval = 1
-        word.next_review_at = now + timedelta(minutes=10)  # 10分後に再出題
-        word.status = "learning"
-        word.mistake_count += 1
+        updated_count += 1
 
-    return word
+    return updated_count, missing_ids
 
 
 def create_word(db: Session, word_data: schemas.WordCreate) -> models.Word:
