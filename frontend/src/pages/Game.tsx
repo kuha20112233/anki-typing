@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { GameHeader, TypingDisplay } from "../components";
 import { useTypingEngine, useSound, getStudySession } from "../hooks";
 import { Word, GameMode, StudyResultItem, GameResult } from "../types";
@@ -12,6 +12,19 @@ import { Word, GameMode, StudyResultItem, GameResult } from "../types";
 export const Game: React.FC = () => {
   const { mode } = useParams<{ mode: GameMode }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const questionCount = Math.min(
+    Math.max(Number(searchParams.get("questions")) || 10, 1),
+    50
+  );
+
+  useEffect(() => {
+    if (mode) {
+      sessionStorage.setItem("lastGameMode", mode);
+      sessionStorage.setItem("lastQuestionCount", String(questionCount));
+    }
+  }, [mode, questionCount]);
+
   const { playTypeSound, playErrorSound, playWordCompleteSound } = useSound();
 
   const [words, setWords] = useState<Word[]>([]);
@@ -154,7 +167,7 @@ export const Game: React.FC = () => {
   useEffect(() => {
     const fetchWords = async () => {
       try {
-        const data = await getStudySession(mode as GameMode, 10);
+        const data = await getStudySession(mode as GameMode, questionCount);
         if (data.length === 0) {
           alert("学習する単語がありません。ダッシュボードに戻ります。");
           navigate("/");
@@ -173,7 +186,7 @@ export const Game: React.FC = () => {
     };
 
     fetchWords();
-  }, [mode, navigate]);
+  }, [mode, navigate, questionCount]);
 
   // キーボードイベントのリスナー
   useEffect(() => {

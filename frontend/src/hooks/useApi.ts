@@ -16,8 +16,10 @@ async function fetchApi<T>(
   options?: RequestInit
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
+  const isGet = !options?.method || options.method.toUpperCase() === "GET";
   const response = await fetch(url, {
     ...options,
+    cache: isGet ? "no-store" : options?.cache,
     headers: {
       "Content-Type": "application/json",
       ...options?.headers,

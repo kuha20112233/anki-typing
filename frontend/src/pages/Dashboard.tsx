@@ -46,6 +46,14 @@ export const Dashboard: React.FC = () => {
 
   useEffect(() => {
     fetchStats();
+
+    // ページを離れて戻ってきた場合に統計を再取得
+    const handleFocus = () => {
+      fetchStats();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, []);
 
   const handleUploadComplete = (result: UploadResponse) => {
@@ -54,8 +62,8 @@ export const Dashboard: React.FC = () => {
     setTimeout(() => setUploadMessage(null), 5000);
   };
 
-  const handleSelectMode = (mode: GameMode) => {
-    navigate(`/game/${mode}`);
+  const handleSelectMode = (mode: GameMode, questionCount: number) => {
+    navigate(`/game/${mode}?questions=${questionCount}`);
   };
 
   return (

@@ -1,8 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import { GameMode } from "../types";
 
 interface ModeSelectProps {
-  onSelectMode: (mode: GameMode) => void;
+  onSelectMode: (mode: GameMode, questionCount: number) => void;
   disabled?: boolean;
 }
 
@@ -13,6 +13,8 @@ export const ModeSelect: React.FC<ModeSelectProps> = ({
   onSelectMode,
   disabled,
 }) => {
+  const [questionCount, setQuestionCount] = useState<number>(10);
+
   const modes: {
     mode: GameMode;
     title: string;
@@ -39,17 +41,59 @@ export const ModeSelect: React.FC<ModeSelectProps> = ({
     },
   ];
 
+  const handleSelectMode = (mode: GameMode) => {
+    onSelectMode(mode, questionCount);
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
       <h3 className="text-lg font-semibold text-gray-800 mb-4">
         🎮 ゲームモード選択
       </h3>
 
+      {/* 問題数設定 */}
+      <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          📝 出題数：
+        </label>
+        <div className="flex items-center gap-4">
+          <input
+            type="range"
+            min="1"
+            max="50"
+            value={questionCount}
+            onChange={(e) => setQuestionCount(Number(e.target.value))}
+            disabled={disabled}
+            className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50"
+          />
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min="1"
+              max="50"
+              value={questionCount}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                if (val >= 1 && val <= 50) {
+                  setQuestionCount(val);
+                }
+              }}
+              disabled={disabled}
+              className="w-16 px-2 py-1 border border-gray-300 rounded text-center disabled:opacity-50"
+            />
+            <span className="text-gray-600">問</span>
+          </div>
+        </div>
+        <p className="text-xs text-gray-500 mt-2">
+          💡 1～50問の範囲で設定できます
+        </p>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {modes.map(({ mode, title, description, icon }) => (
           <button
             key={mode}
-            onClick={() => onSelectMode(mode)}
+            onClick={() => handleSelectMode(mode)}
             disabled={disabled}
             className={`
               p-6 rounded-xl border-2 transition-all duration-200

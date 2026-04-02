@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 
 import crud
@@ -9,7 +9,7 @@ router = APIRouter(tags=["stats"])
 
 
 @router.get("/stats", response_model=schemas.StatsResponse)
-def get_stats(db: Session = Depends(get_db)):
+def get_stats(response: Response, db: Session = Depends(get_db)):
     """
     学習統計情報を取得
     - total_words: 総単語数
@@ -18,4 +18,5 @@ def get_stats(db: Session = Depends(get_db)):
     - new_words: 未学習単語数
     - review_words: 復習待ち単語数
     """
+    response.headers["Cache-Control"] = "no-store"
     return crud.get_stats(db)

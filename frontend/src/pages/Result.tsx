@@ -50,12 +50,20 @@ export const Result: React.FC = () => {
   };
 
   const handleRetry = () => {
+    if (submitting) return;
+
+    // セッションストレージをクリア
+    sessionStorage.removeItem("gameResult");
     // 同じモードで再挑戦
     const lastMode = sessionStorage.getItem("lastGameMode") || "english";
-    navigate(`/game/${lastMode}`);
+    const lastQuestionCount =
+      sessionStorage.getItem("lastQuestionCount") || "10";
+    navigate(`/game/${lastMode}?questions=${lastQuestionCount}`);
   };
 
   const handleGoHome = () => {
+    if (submitting) return;
+
     sessionStorage.removeItem("gameResult");
     navigate("/");
   };
@@ -146,12 +154,14 @@ export const Result: React.FC = () => {
         <div className="space-y-3">
           <button
             onClick={handleRetry}
+            disabled={submitting}
             className="w-full py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-xl transition-colors"
           >
             🔄 もう一度挑戦
           </button>
           <button
             onClick={handleGoHome}
+            disabled={submitting}
             className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-colors"
           >
             🏠 トップへ戻る

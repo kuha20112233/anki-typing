@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, func
+from sqlalchemy import or_, func, case
 import models
 import schemas
 
@@ -17,7 +17,7 @@ def get_words_for_study(
       3. 上記で足りない場合は、他の単語からランダムに補充
     """
     now = datetime.utcnow()
-    words = []
+    words: List[models.Word] = []
 
     # 1. 復習が必要な単語を取得（new, または復習期限が来たもの）
     priority_words = (
@@ -30,8 +30,8 @@ def get_words_for_study(
             )
         )
         .order_by(
-            # newの単語を優先、その後next_review_atが早い順
-            models.Word.status.desc(),
+            # newを最優先、その後は復習期限が早い順
+            case((models.Word.status == "new", 0), else_=1),
             models.Word.next_review_at.asc(),
         )
         .limit(limit)
@@ -53,6 +53,18 @@ def get_words_for_study(
         )
         words.extend(additional_words)
 
+    # 3. 単語総数がlimit未満のときは重複を許可して補充
+    #    （出題数指定を必ず満たすため）
+    if len(words) < limit:
+        all_words = db.query(models.Word).order_by(func.random()).all()
+        if not all_words:
+            return words
+
+        idx = 0
+        while len(words) < limit:
+            words.append(all_words[idx % len(all_words)])
+            idx += 1
+
     return words
 
 
@@ -68,9 +80,6 @@ def update_word_progress(
         return None
 
     now = datetime.utcnow()
-    print(
-        f"[update_word_progress] Updating word {word_id}: is_correct={is_correct}, current_interval={word.interval}"
-    )
 
     if is_correct:
         # 正解: intervalを増加
@@ -86,9 +95,6 @@ def update_word_progress(
         else:
             word.status = "learning"
 
-        print(
-            f"[update_word_progress] Correct! new_interval={new_interval}, status={word.status}"
-        )
     else:
         # 不正解: intervalをリセット
         word.interval = 1
@@ -96,12 +102,6 @@ def update_word_progress(
         word.status = "learning"
         word.mistake_count += 1
 
-        print(
-            f"[update_word_progress] Incorrect! reset interval, mistake_count={word.mistake_count}"
-        )
-
-    db.commit()
-    db.refresh(word)
     return word
 
 
@@ -120,12 +120,22 @@ def get_word_by_english(db: Session, english: str) -> Optional[models.Word]:
 
 
 def get_stats(db: Session) -> schemas.StatsResponse:
-    """統計情報を取得"""
+    """統計情報を取得（復習待ちは期限ベースで算出）"""
+    now = datetime.utcnow()
+
     total = db.query(models.Word).count()
     mastered = db.query(models.Word).filter(models.Word.status == "mastered").count()
     learning = db.query(models.Word).filter(models.Word.status == "learning").count()
     new_words = db.query(models.Word).filter(models.Word.status == "new").count()
-    review = db.query(models.Word).filter(models.Word.status == "review").count()
+    review = (
+        db.query(models.Word)
+        .filter(
+            models.Word.status != "new",
+            models.Word.next_review_at.isnot(None),
+            models.Word.next_review_at <= now,
+        )
+        .count()
+    )
 
     return schemas.StatsResponse(
         total_words=total,
