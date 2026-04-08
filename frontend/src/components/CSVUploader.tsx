@@ -31,7 +31,7 @@ export const CSVUploader: React.FC<CSVUploaderProps> = ({
       onUploadComplete(result);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "アップロードに失敗しました"
+        err instanceof Error ? err.message : "アップロードに失敗しました",
       );
     } finally {
       setUploading(false);
@@ -106,6 +106,14 @@ export const CSVUploader: React.FC<CSVUploaderProps> = ({
             </p>
             <p className="text-sm text-gray-400">
               CSV形式: english, japanese_view, japanese_romaji
+            </p>
+            <p className="text-xs text-gray-400 mt-2 leading-relaxed">
+              romaji にカンマが入る場合は、
+              <br />
+              <span className="font-mono">
+                "naninaninitsuzuite,tsugino,ikagono"
+              </span>
+              のようにダブルクォートで囲ってください。
             </p>
           </>
         )}

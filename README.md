@@ -114,16 +114,15 @@ anki-typing/
 単語を登録する CSV ファイルは以下の形式で作成してください：
 
 ```csv
-english,japanese_view,japanese_romaji
-accommodate,収容する,shuuyousuru
-acknowledge,認める,mitomeru
+english,japanese_view,"japanese_romaji"
+following,なになにに続いて、次の、以下の,"naninanininitsuzuite,tsugino,ikagono"
 ```
 
-| カラム            | 説明                 |
-| ----------------- | -------------------- |
-| `english`         | 英単語               |
-| `japanese_view`   | 日本語（表示用）     |
-| `japanese_romaji` | 日本語のローマ字表記 |
+| カラム            | 説明                                                           |
+| ----------------- | -------------------------------------------------------------- |
+| `english`         | 英単語                                                         |
+| `japanese_view`   | 日本語（表示用）                                               |
+| `japanese_romaji` | 日本語のローマ字表記（カンマを含む場合はダブルクォートで囲む） |
 
 サンプルファイル: [sample_words.csv](./sample_words.csv)
 
