@@ -95,3 +95,6 @@ temp/
 # Package lock files (optional - uncomment if you want to ignore)
 # package-lock.json
 # yarn.lock
+
+# csvファイルは基本的にgitで管理しない
+*.csv
