@@ -9,12 +9,16 @@ const ROMAJI_PATTERNS: [string, string][] = [
   ["shi", "si"],
   ["chi", "ti"],
   ["tsu", "tu"],
+  // 3文字 → 3文字
   ["sha", "sya"],
   ["shu", "syu"],
   ["sho", "syo"],
   ["cha", "tya"],
   ["chu", "tyu"],
   ["cho", "tyo"],
+  ["tya", "cha"],
+  ["tyu", "chu"],
+  ["tyo", "cho"],
   // 2文字 → 2文字
   ["fu", "hu"],
   ["ji", "zi"],
@@ -74,7 +78,7 @@ function generateVariants(target: string): string[] {
 export function isNextCharValid(
   currentTyped: string,
   nextChar: string,
-  target: string
+  target: string,
 ): boolean {
   const newTyped = (currentTyped + nextChar).toLowerCase();
   const variants = generateVariants(target);
